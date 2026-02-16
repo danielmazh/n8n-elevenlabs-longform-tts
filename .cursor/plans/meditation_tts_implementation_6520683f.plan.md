@@ -40,6 +40,37 @@ This plan operationalizes the architecture from [.cursor/plans/0001_pre_plan.md]
 
 ---
 
+## 0. Skill Inventory
+
+Three agent skills provide the domain knowledge required to execute this plan. Each skill maps to specific phases and must be read before entering its corresponding phase.
+
+| Skill | Path | Covers | Plan Phases |
+|-------|------|--------|-------------|
+| `docker-manager` | `~/.cursor/skills/docker-manager/SKILL.md` | Docker Compose lifecycle, container health, logs, volumes, port conflicts, cleanup | Phase 1 (Infrastructure) |
+| `n8n-workflow-expert` | `~/.cursor/skills/n8n-workflow-expert/SKILL.md` | Workflow JSON architecture, Code node JS, n8n expressions, text sanitization, sentence-aware chunking, binary merge via n8n helpers, execution modes | Phase 2 (Text Processing), Phase 4 (Binary Assembly) |
+| `elevenlabs-api-connector` | `~/.cursor/skills/elevenlabs-api-connector/SKILL.md` | TTS endpoint schema, auth headers, voice settings tuning, model selection, rate limit handling, error codes, voice creation workflow | Phase 3 (TTS Orchestration) |
+
+### Skill-to-Phase Mapping
+
+```mermaid
+flowchart LR
+    DM["docker-manager"] --> P1["Phase 1: Infrastructure"]
+    N8N["n8n-workflow-expert"] --> P2["Phase 2: Text Processing"]
+    EL["elevenlabs-api-connector"] --> P3["Phase 3: TTS API"]
+    N8N --> P4["Phase 4: Binary Assembly"]
+    DM --> P5["Phase 5: Error Handling"]
+    All["All 3 Skills"] --> P6["Phase 6: Testing"]
+```
+
+### Activation Protocol
+
+Before beginning any phase, the agent must:
+1. Read the corresponding skill file(s) from the table above.
+2. Apply the skill's rules and patterns during execution.
+3. Reference the skill's troubleshooting section if errors occur.
+
+---
+
 ## 1. Repository Bootstrap
 
 The workspace is currently empty (no app code, no Docker files, no env). We need foundational files.
@@ -357,18 +388,27 @@ if (!$json.clean_text || $json.clean_text.length < 10) {
 
 ---
 
-## 6. File Manifest (All Files to Create)
+## 6. File Manifest
 
+### Files to Create (Project)
 
-| File                                             | Purpose                     |
-| ------------------------------------------------ | --------------------------- |
-| `docker-compose.yml`                             | n8n service definition      |
-| `.env.example`                                   | Secret template             |
-| `.env`                                           | Actual secrets (gitignored) |
-| `.gitignore`                                     | Ignore patterns             |
-| `README.md`                                      | Quickstart + architecture   |
-| `workflows/meditation_tts.json`                  | n8n importable workflow     |
-| `.cursor/plans/0002_full_implementation_plan.md` | This plan                   |
+| File | Purpose |
+| ---- | ------- |
+| `docker-compose.yml` | n8n service definition |
+| `.env.example` | Secret template |
+| `.env` | Actual secrets (gitignored) |
+| `.gitignore` | Ignore patterns |
+| `README.md` | Quickstart + architecture |
+| `workflows/meditation_tts.json` | n8n importable workflow |
+| `.cursor/plans/0002_full_implementation_plan.md` | This plan |
+
+### Required Skills (Personal, pre-existing)
+
+| Skill File | Status |
+| ---------- | ------ |
+| `~/.cursor/skills/docker-manager/SKILL.md` | Ready |
+| `~/.cursor/skills/n8n-workflow-expert/SKILL.md` | Ready |
+| `~/.cursor/skills/elevenlabs-api-connector/SKILL.md` | Ready |
 
 
 ---
