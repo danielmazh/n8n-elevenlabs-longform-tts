@@ -1,11 +1,11 @@
-# Long-Form Meditation TTS Pipeline
+# Long-Form TTS Pipeline
 
-Convert long meditation scripts into high-quality MP3 audio using [n8n](https://n8n.io) and [ElevenLabs](https://elevenlabs.io) -- fully self-hosted, no code required after setup.
+Convert long texts into high-quality MP3 audio using [n8n](https://n8n.io) and [ElevenLabs](https://elevenlabs.io) -- fully self-hosted, no code required after setup.
 
 ## How It Works
 
 ```
-Paste Text --> Sanitize --> Smart Chunk --> TTS & Assemble --> meditation_final.mp3
+Paste Text --> Sanitize --> Smart Chunk --> TTS & Assemble --> output_final.mp3
 ```
 
 The pipeline handles texts of any length. It strips markdown formatting and emojis, splits at paragraph or sentence boundaries (max 1,200 chars per chunk) to avoid mid-sentence cuts, calls ElevenLabs v3 sequentially for each chunk, and uses FFmpeg to merge the audio into a single, seamless MP3 with correct duration metadata.
@@ -69,22 +69,22 @@ Open [http://localhost:5678](http://localhost:5678). On first launch, n8n asks y
 1. Click **Add workflow** in the n8n dashboard.
 2. Click the **...** menu (top-right of the editor).
 3. Select **Import from File**.
-4. Choose `workflows/meditation_tts.json` from this project.
+4. Choose `workflows/longform_tts.json` from this project.
 
 **Option B -- via command line:**
 
 ```bash
-docker cp workflows/meditation_tts.json n8n:/tmp/meditation_tts.json
-docker exec n8n n8n import:workflow --input=/tmp/meditation_tts.json
+docker cp workflows/longform_tts.json n8n:/tmp/longform_tts.json
+docker exec n8n n8n import:workflow --input=/tmp/longform_tts.json
 ```
 
 You should see 5 connected nodes in a left-to-right chain.
 
 ### 6. Run It
 
-1. Open the **Meditation TTS Pipeline** workflow.
+1. Open the **Long-Form TTS Pipeline** workflow.
 2. Double-click the **Set Input Text** node.
-3. Replace the sample text with your meditation script.
+3. Replace the sample text with your content.
 4. Close the node editor.
 5. Click **Test Workflow** (play button at the bottom).
 6. Wait for all nodes to turn green.
@@ -92,7 +92,7 @@ You should see 5 connected nodes in a left-to-right chain.
 ### 7. Get Your Audio
 
 ```bash
-docker cp n8n:/home/node/.n8n/meditation_final.mp3 ./meditation_final.mp3
+docker cp n8n:/home/node/.n8n/output_final.mp3 ./output_final.mp3
 ```
 
 Play with any audio player or share directly (WhatsApp, Telegram, etc. -- duration displays correctly).
@@ -140,7 +140,7 @@ Rule of thumb: ~1 MB of MP3 per minute of audio at 192 kbps.
 | # | Node | Type | Purpose |
 |---|------|------|---------|
 | 1 | Manual Trigger | `manualTrigger` | Starts the workflow on demand |
-| 2 | Set Input Text | `set` | Holds the meditation script you paste in |
+| 2 | Set Input Text | `set` | Holds the text you paste in |
 | 3 | Sanitize Text | `code` | Strips markdown, emojis, normalizes whitespace |
 | 4 | Chunk Text | `code` | Splits text at paragraph/sentence boundaries (max 1,200 chars) |
 | 5 | TTS & Assemble | `code` | Calls ElevenLabs API sequentially per chunk, saves each as a separate file, merges with FFmpeg (`-c:a libmp3lame`), returns the final MP3 |
@@ -156,12 +156,12 @@ The **TTS & Assemble** node handles everything in one place:
 
 ## Voice Configuration
 
-### Creating a Meditation Voice
+### Choosing a Voice
 
 1. Log in at [elevenlabs.io](https://elevenlabs.io).
 2. Go to **Voice Lab** > **Add Generative or Cloned Voice** > **Voice Design**.
 3. Describe the voice you want, for example:
-   > Mature male, deep resonant tone, slow rhythmic delivery, authoritative and empathetic mentor style, clear and deliberate.
+   > Warm narrator, clear enunciation, calm and steady pace, professional tone.
 4. Generate and preview samples until you find the right tone.
 5. Save the voice.
 6. Copy the **Voice ID** into your `.env` file.
@@ -190,9 +190,7 @@ Configured inside the **TTS & Assemble** node's code. The v3 model uses **discre
 |-----------|---------------|---------|-------------|
 | `stability` | `0.0`, `0.5`, `1.0` | `0.5` | `0.0` = Creative, `0.5` = Natural, `1.0` = Robust |
 | `similarity_boost` | 0.0 -- 1.0 | `0.80` | Higher = closer to the original voice |
-| `style` | 0.0 -- 1.0 | `0.0` | Keep at 0.0 for neutral, meditative delivery |
-
-**Recommended for meditation:** `stability: 0.5` (Natural), `similarity_boost: 0.80`, `style: 0.0`.
+| `style` | 0.0 -- 1.0 | `0.0` | Keep at 0.0 for neutral delivery |
 
 To change: open the **TTS & Assemble** node and edit the `voice_settings` object in the code.
 
@@ -215,7 +213,7 @@ The workflow defaults to `eleven_v3`. To use a different model (e.g., `eleven_mu
 | **Stop + delete all data** | `docker compose down -v` |
 | **Restart after `.env` change** | `docker compose down && docker compose up -d --build` |
 | **View logs** | `docker compose logs -f n8n` |
-| **Copy output file** | `docker cp n8n:/home/node/.n8n/meditation_final.mp3 ./meditation_final.mp3` |
+| **Copy output file** | `docker cp n8n:/home/node/.n8n/output_final.mp3 ./output_final.mp3` |
 
 > **Important:** `docker compose restart` does **not** reload `.env` changes. Always use `down` then `up`.
 
@@ -234,7 +232,7 @@ The workflow defaults to `eleven_v3`. To use a different model (e.g., `eleven_mu
 | Port 5678 already in use | Another service on that port | Stop the other service or change the port in `docker-compose.yml` |
 | "Input text is empty or too short" | Text blank or under 10 chars | Paste actual content into **Set Input Text** |
 | Audio jumps between chunks | Chunks too long or bad split point | Reduce `MAX_CHARS` in the Chunk Text node (default: 1200) |
-| MP3 shows wrong duration | Old workflow version without FFmpeg merge | Re-import the latest `meditation_tts.json` |
+| MP3 shows wrong duration | Old workflow version without FFmpeg merge | Re-import the latest `longform_tts.json` |
 
 ---
 
@@ -249,7 +247,7 @@ elevenLabs-n8n/
   .env                        # Your actual credentials (gitignored)
   .gitignore                  # Ignores .env, .mp3, temp data
   workflows/
-    meditation_tts.json       # Importable n8n workflow (5 nodes)
+    longform_tts.json         # Importable n8n workflow (5 nodes)
 ```
 
 ---
