@@ -4,31 +4,31 @@ overview: Expand the 0001_pre_plan.md into a comprehensive, actionable implement
 todos:
   - id: bootstrap
     content: "Create repo foundation files: docker-compose.yml, .env.example, .env, .gitignore, README.md"
-    status: pending
+    status: completed
   - id: docker-up
     content: Start n8n via docker compose up -d, verify UI at localhost:5678
-    status: pending
+    status: completed
   - id: elevenlabs-config
     content: Configure ElevenLabs voice + API key in .env (manual UI step, documented in README)
-    status: pending
+    status: completed
   - id: workflow-json
     content: "Build complete n8n workflow JSON (workflows/meditation_tts.json) with all 7 nodes: Trigger, Set Input, Sanitize, Chunk, TTS HTTP, Binary Merge, Write File"
-    status: pending
+    status: completed
   - id: import-workflow
     content: Import workflow into n8n UI and verify all nodes load correctly
-    status: pending
+    status: completed
   - id: smoke-test
     content: "Smoke test: verify n8n container health, env vars accessible, UI responsive"
-    status: pending
+    status: completed
   - id: unit-test
     content: Unit test with 100-word meditation text, verify single-chunk flow produces valid MP3
-    status: pending
+    status: completed
   - id: load-test
     content: Load test with 5000-word text, verify multi-chunk merging, no audible artifacts
-    status: pending
+    status: completed
   - id: edge-cases
     content: "Edge case tests: empty input guard, single sentence, heavy markdown, emojis"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -44,11 +44,13 @@ This plan operationalizes the architecture from [.cursor/plans/0001_pre_plan.md]
 
 Three agent skills provide the domain knowledge required to execute this plan. Each skill maps to specific phases and must be read before entering its corresponding phase.
 
-| Skill | Path | Covers | Plan Phases |
-|-------|------|--------|-------------|
-| `docker-manager` | `~/.cursor/skills/docker-manager/SKILL.md` | Docker Compose lifecycle, container health, logs, volumes, port conflicts, cleanup | Phase 1 (Infrastructure) |
-| `n8n-workflow-expert` | `~/.cursor/skills/n8n-workflow-expert/SKILL.md` | Workflow JSON architecture, Code node JS, n8n expressions, text sanitization, sentence-aware chunking, binary merge via n8n helpers, execution modes | Phase 2 (Text Processing), Phase 4 (Binary Assembly) |
-| `elevenlabs-api-connector` | `~/.cursor/skills/elevenlabs-api-connector/SKILL.md` | TTS endpoint schema, auth headers, voice settings tuning, model selection, rate limit handling, error codes, voice creation workflow | Phase 3 (TTS Orchestration) |
+
+| Skill                      | Path                                                 | Covers                                                                                                                                               | Plan Phases                                          |
+| -------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `docker-manager`           | `~/.cursor/skills/docker-manager/SKILL.md`           | Docker Compose lifecycle, container health, logs, volumes, port conflicts, cleanup                                                                   | Phase 1 (Infrastructure)                             |
+| `n8n-workflow-expert`      | `~/.cursor/skills/n8n-workflow-expert/SKILL.md`      | Workflow JSON architecture, Code node JS, n8n expressions, text sanitization, sentence-aware chunking, binary merge via n8n helpers, execution modes | Phase 2 (Text Processing), Phase 4 (Binary Assembly) |
+| `elevenlabs-api-connector` | `~/.cursor/skills/elevenlabs-api-connector/SKILL.md` | TTS endpoint schema, auth headers, voice settings tuning, model selection, rate limit handling, error codes, voice creation workflow                 | Phase 3 (TTS Orchestration)                          |
+
 
 ### Skill-to-Phase Mapping
 
@@ -62,10 +64,13 @@ flowchart LR
     All["All 3 Skills"] --> P6["Phase 6: Testing"]
 ```
 
+
+
 ### Activation Protocol
 
 Before beginning any phase, the agent must:
-1. Read the corresponding skill file(s) from the table above.
+
+1. Read the *corresponding s*kill file(s) from the table above.
 2. Apply the skill's rules and patterns during execution.
 3. Reference the skill's troubleshooting section if errors occur.
 
@@ -392,23 +397,26 @@ if (!$json.clean_text || $json.clean_text.length < 10) {
 
 ### Files to Create (Project)
 
-| File | Purpose |
-| ---- | ------- |
-| `docker-compose.yml` | n8n service definition |
-| `.env.example` | Secret template |
-| `.env` | Actual secrets (gitignored) |
-| `.gitignore` | Ignore patterns |
-| `README.md` | Quickstart + architecture |
-| `workflows/meditation_tts.json` | n8n importable workflow |
-| `.cursor/plans/0002_full_implementation_plan.md` | This plan |
+
+| File                                             | Purpose                     |
+| ------------------------------------------------ | --------------------------- |
+| `docker-compose.yml`                             | n8n service definition      |
+| `.env.example`                                   | Secret template             |
+| `.env`                                           | Actual secrets (gitignored) |
+| `.gitignore`                                     | Ignore patterns             |
+| `README.md`                                      | Quickstart + architecture   |
+| `workflows/meditation_tts.json`                  | n8n importable workflow     |
+| `.cursor/plans/0002_full_implementation_plan.md` | This plan                   |
+
 
 ### Required Skills (Personal, pre-existing)
 
-| Skill File | Status |
-| ---------- | ------ |
-| `~/.cursor/skills/docker-manager/SKILL.md` | Ready |
-| `~/.cursor/skills/n8n-workflow-expert/SKILL.md` | Ready |
-| `~/.cursor/skills/elevenlabs-api-connector/SKILL.md` | Ready |
+
+| Skill File                                           | Status |
+| ---------------------------------------------------- | ------ |
+| `~/.cursor/skills/docker-manager/SKILL.md`           | Ready  |
+| `~/.cursor/skills/n8n-workflow-expert/SKILL.md`      | Ready  |
+| `~/.cursor/skills/elevenlabs-api-connector/SKILL.md` | Ready  |
 
 
 ---

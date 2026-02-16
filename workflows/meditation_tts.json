@@ -1,0 +1,118 @@
+{
+  "name": "Meditation TTS Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d6f1a8b2-4c3e-4f5a-9b1d-2e3f4a5b6c7d",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 260]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "text-field-01",
+              "name": "text",
+              "value": "Take a deep breath in. Hold it for a moment. And slowly release. Feel the tension leaving your body with each exhale. You are safe. You are present. You are exactly where you need to be. Let your mind settle like still water, reflecting the calm of this moment. With each breath, you sink deeper into relaxation. Your body becomes heavy and warm. Your thoughts slow down, drifting like clouds across a vast sky. There is nothing to do, nowhere to be. Just this breath. Just this moment. Allow yourself to simply exist in this peaceful space.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e7f2b9c3-5d4e-4f6b-ac2e-3f4a5b6c7d8e",
+      "name": "Set Input Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.item.json.text || \"\";\n\nfunction sanitize(input) {\n  return input\n    .replace(/\\*\\*/g, \"\")\n    .replace(/#{1,6}\\s?/g, \"\")\n    .replace(/~~.*?~~/g, \"\")\n    .replace(/_([^_]+)_/g, \"$1\")\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, \"$1\")\n    .replace(/[\\u{1F600}-\\u{1F64F}\\u{1F300}-\\u{1F5FF}\\u{1F680}-\\u{1F6FF}]/gu, \"\")\n    .replace(/\\n\\s*\\n/g, \"\\n\\n\")\n    .trim();\n}\n\nconst clean_text = sanitize(text);\n\nif (!clean_text || clean_text.length < 10) {\n  throw new Error(\"Input text is empty or too short for TTS generation\");\n}\n\nreturn { json: { clean_text } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "f8a3c0d4-6e5f-4a7c-bd3f-4a5b6c7d8e9f",
+      "name": "Sanitize Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst fullText = items[0].json.clean_text;\nconst MAX_CHARS = 1200;\nconst chunks = [];\nlet remainingText = fullText;\n\nwhile (remainingText.length > 0) {\n  if (remainingText.length <= MAX_CHARS) {\n    chunks.push(remainingText);\n    break;\n  }\n  const slice = remainingText.substring(0, MAX_CHARS);\n\n  // Priority 1: split at paragraph break\n  let splitIdx = slice.lastIndexOf('\\n\\n');\n\n  // Priority 2: split at sentence boundary\n  if (splitIdx === -1 || splitIdx < MAX_CHARS * 0.3) {\n    const sentenceIdx = Math.max(\n      slice.lastIndexOf('. '),\n      slice.lastIndexOf('? '),\n      slice.lastIndexOf('! ')\n    );\n    if (sentenceIdx > splitIdx) splitIdx = sentenceIdx;\n  }\n\n  // Priority 3: split at any whitespace\n  if (splitIdx === -1) splitIdx = slice.lastIndexOf(' ');\n  if (splitIdx === -1) splitIdx = MAX_CHARS;\n\n  const finalSlice = remainingText.substring(0, splitIdx + 1).trim();\n  chunks.push(finalSlice);\n  remainingText = remainingText.substring(splitIdx + 1).trim();\n}\n\nreturn chunks.map((chunk, index) => ({\n  json: { chunk_text: chunk, chunk_index: index, total_chunks: chunks.length }\n}));",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "a9b4d1e5-7f6a-4b8d-ce4a-5b6c7d8e9f0a",
+      "name": "Chunk Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { execSync } = require('child_process');\nconst fs = require('fs');\n\nconst items = $input.all();\nif (items.length === 0) return [];\n\nitems.sort((a, b) => a.json.chunk_index - b.json.chunk_index);\n\nconst apiKey = $env.ELEVENLABS_API_KEY;\nconst voiceId = $env.ELEVENLABS_VOICE_ID;\nconst workDir = '/home/node/.n8n';\nconst chunkFiles = [];\n\n// --- Step 1: Call ElevenLabs sequentially for each chunk ---\nfor (let i = 0; i < items.length; i++) {\n  const chunk = items[i].json.chunk_text;\n  const idx = items[i].json.chunk_index;\n  const chunkPath = `${workDir}/tts_chunk_${String(idx).padStart(4, '0')}.mp3`;\n\n  let lastError;\n  for (let attempt = 0; attempt < 3; attempt++) {\n    try {\n      const response = await this.helpers.httpRequest({\n        url: `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,\n        method: 'POST',\n        headers: {\n          'xi-api-key': apiKey,\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify({\n          text: chunk,\n          model_id: 'eleven_v3',\n          voice_settings: { stability: 0.5, similarity_boost: 0.80, style: 0.0 }\n        }),\n        encoding: 'arraybuffer',\n      });\n      fs.writeFileSync(chunkPath, Buffer.from(response));\n      chunkFiles.push(chunkPath);\n      lastError = null;\n      break;\n    } catch (err) {\n      lastError = err;\n      if (attempt < 2) await new Promise(r => setTimeout(r, 5000));\n    }\n  }\n  if (lastError) throw new Error(`Chunk ${idx} failed after 3 retries: ${lastError.message}`);\n\n  if (i < items.length - 1) {\n    await new Promise(r => setTimeout(r, 500));\n  }\n}\n\n// --- Step 2: Create FFmpeg concat list ---\nconst listPath = `${workDir}/concat_list.txt`;\nfs.writeFileSync(listPath, chunkFiles.map(f => `file '${f}'`).join('\\n'));\n\n// --- Step 3: Merge with FFmpeg re-encode (seamless audio, correct duration) ---\nconst outputPath = `${workDir}/meditation_final.mp3`;\ntry {\n  execSync(`ffmpeg -y -f concat -safe 0 -i ${listPath} -c:a libmp3lame -b:a 192k -ar 44100 ${outputPath}`, { timeout: 120000 });\n} catch (e) {\n  if (!fs.existsSync(outputPath)) throw new Error(`FFmpeg merge failed: ${e.message}`);\n}\n\n// --- Step 4: Read merged file ---\nconst mergedBuffer = fs.readFileSync(outputPath);\n\n// --- Step 5: Clean up temp files ---\nfor (const f of chunkFiles) { try { fs.unlinkSync(f); } catch(e) {} }\ntry { fs.unlinkSync(listPath); } catch(e) {}\n\nreturn [{\n  json: {\n    fileName: 'meditation_final.mp3',\n    size_mb: (mergedBuffer.length / (1024 * 1024)).toFixed(2),\n    chunks_merged: items.length,\n    output_path: outputPath\n  },\n  binary: {\n    data: await this.helpers.prepareBinaryData(mergedBuffer, 'meditation_final.mp3', 'audio/mpeg')\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "b0c5e2f6-8a7b-4c9e-df5a-6b7d8e9f0a1b",
+      "name": "TTS & Assemble",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 260]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Input Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Input Text": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Text": {
+      "main": [
+        [
+          {
+            "node": "Chunk Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Text": {
+      "main": [
+        [
+          {
+            "node": "TTS & Assemble",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

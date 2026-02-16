@@ -1,0 +1,7 @@
+.env
+.n8n/
+node_modules/
+*.mp3
+output-mp3/
+debug-chunks/
+.DS_Store

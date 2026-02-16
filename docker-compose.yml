@@ -1,0 +1,24 @@
+services:
+  n8n:
+    build: .
+    container_name: n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_LOG_LEVEL=info
+      - N8N_METRICS=true
+      - GENERIC_TIMEZONE=UTC
+      - N8N_SECURE_COOKIE=false
+      - N8N_PUBLIC_API_DISABLED=false
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES=false
+      - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/.n8n
+      - NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs
+    volumes:
+      - n8n_data:/home/node/.n8n
+    env_file:
+      - .env
+
+volumes:
+  n8n_data:
